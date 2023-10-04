@@ -51,8 +51,8 @@ namespace ClassLibrary1
 
                         }
                     }
-                } 
-                catch (Exception ex) 
+                }
+                catch (Exception ex)
                 {
                     if (System.IO.File.Exists("bert-large-uncased-whole-word-masking-finetuned-squad.onnx"))
                     {
@@ -62,88 +62,55 @@ namespace ClassLibrary1
                 }
 
             }
-            try
-            {
-                var textAnalyzer = new TextAnalyzer(path_text);
-                textAnalyzer.text = await textAnalyzer.streamreader.ReadToEndAsync();
-                return textAnalyzer;
+            var textAnalyzer = new TextAnalyzer(path_text);
+            textAnalyzer.text = await textAnalyzer.streamreader.ReadToEndAsync();
+            return textAnalyzer;
 
-            }
-
-            catch (Exception ex)
-            {
-
-                Console.WriteLine(ex.Message);
-                return new TextAnalyzer(path_text);///////////////////
-            }
-            
         }
 
 
         StreamReader streamreader;
         string text;
-        public TextAnalyzer(string path_text) 
+        private TextAnalyzer(string path_text)
         {
             streamreader = new StreamReader(path_text);
             text = string.Empty;
         }
-        public async Task Run()
-        {
-            List<Tuple<string, string>> ans = new List<Tuple<string, string>>();
-            string question;
-            await Task.Factory.StartNew(() =>
-            {
-                MakeTask(Console.ReadLine() ?? string.Empty);
-            }, TaskCreationOptions.LongRunning);
-        }
 
-        private void MakeTask(string question)
+        public async Task<Tuple<string, string>> GetAnswerAsync(string question, CancellationToken token)
         {
-            if (question != string.Empty)
+            return await Task<Tuple<string, string>>.Factory.StartNew(() =>
             {
-                var task1 = Task.Factory.StartNew(() =>
+                var sentence = $"\"question\": \"{question}\" \"context\": \"{text}\"";
+                var tokenizer = new BertUncasedLargeTokenizer();
+                var tokens = tokenizer.Tokenize(sentence);
+                var encoded = tokenizer.Encode(tokens.Count(), sentence);
+                var bertInput = new BertInput()
                 {
-                    MakeTask(Console.ReadLine() ?? string.Empty);
-                }, TaskCreationOptions.LongRunning);
-                var task2 = Task<Tuple<string, string>>.Factory.StartNew(() =>
-                {
-                    return GetAnswer(question);
-                }, TaskCreationOptions.LongRunning);
-                Console.WriteLine($"question: {task2.Result.Item1}, answer: {task2.Result.Item2}");
-                task1.Wait();
-            }
-        }
-        private Tuple<string, string> GetAnswer(string question)
-        {
-            var sentence = $"\"question\": \"{question}\" \"context\": \"{text}\"";
-            var tokenizer = new BertUncasedLargeTokenizer();
-            var tokens = tokenizer.Tokenize(sentence);
-            var encoded = tokenizer.Encode(tokens.Count(), sentence);
-            var bertInput = new BertInput()
-            {
-                InputIds = encoded.Select(t => t.InputIds).ToArray(),
-                AttentionMask = encoded.Select(t => t.AttentionMask).ToArray(),
-                TypeIds = encoded.Select(t => t.TokenTypeIds).ToArray(),
-            };
-            var modelPath = "bert-large-uncased-whole-word-masking-finetuned-squad.onnx";
-            var input_ids = ConvertToTensor(bertInput.InputIds, bertInput.InputIds.Length);
-            var attention_mask = ConvertToTensor(bertInput.AttentionMask, bertInput.InputIds.Length);
-            var token_type_ids = ConvertToTensor(bertInput.TypeIds, bertInput.InputIds.Length);
-            var input = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor("input_ids", input_ids),
+                    InputIds = encoded.Select(t => t.InputIds).ToArray(),
+                    AttentionMask = encoded.Select(t => t.AttentionMask).ToArray(),
+                    TypeIds = encoded.Select(t => t.TokenTypeIds).ToArray(),
+                };
+                var modelPath = "bert-large-uncased-whole-word-masking-finetuned-squad.onnx";
+                var input_ids = ConvertToTensor(bertInput.InputIds, bertInput.InputIds.Length);
+                var attention_mask = ConvertToTensor(bertInput.AttentionMask, bertInput.InputIds.Length);
+                var token_type_ids = ConvertToTensor(bertInput.TypeIds, bertInput.InputIds.Length);
+                var input = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor("input_ids", input_ids),
                                                     NamedOnnxValue.CreateFromTensor("input_mask", attention_mask),
                                                     NamedOnnxValue.CreateFromTensor("segment_ids", token_type_ids) };
-            var session = new InferenceSession(modelPath);
-            var output = session.Run(input);
-            List<float> startLogits = (output.ToList().First().Value as IEnumerable<float>).ToList();
-            List<float> endLogits = (output.ToList().Last().Value as IEnumerable<float>).ToList();
-            var startIndex = startLogits.ToList().IndexOf(startLogits.Max());
-            var endIndex = endLogits.ToList().IndexOf(endLogits.Max());
-            var predictedTokens = tokens
-                        .Skip(startIndex)
-                        .Take(endIndex + 1 - startIndex)
-                        .Select(o => tokenizer.IdToToken((int)o.VocabularyIndex))
-                        .ToList();
-            return new (question, String.Join(" ", predictedTokens));
+                var session = new InferenceSession(modelPath);
+                var output = session.Run(input);
+                List<float> startLogits = (output.ToList().First().Value as IEnumerable<float>).ToList();
+                List<float> endLogits = (output.ToList().Last().Value as IEnumerable<float>).ToList();
+                var startIndex = startLogits.ToList().IndexOf(startLogits.Max());
+                var endIndex = endLogits.ToList().IndexOf(endLogits.Max());
+                var predictedTokens = tokens
+                            .Skip(startIndex)
+                            .Take(endIndex + 1 - startIndex)
+                            .Select(o => tokenizer.IdToToken((int)o.VocabularyIndex))
+                            .ToList();
+                return new(question, String.Join(" ", predictedTokens));
+            }, token, TaskCreationOptions.LongRunning, TaskScheduler.Current);
         }
         private static Tensor<long> ConvertToTensor(long[] inputArray, int inputDimension)
         {
