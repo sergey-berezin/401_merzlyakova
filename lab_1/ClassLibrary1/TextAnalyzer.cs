@@ -77,9 +77,9 @@ namespace ClassLibrary1
             text = string.Empty;
         }
 
-        public async Task<Tuple<string, string>> GetAnswerAsync(string question, CancellationToken token)
+        public async Task<string> GetAnswerAsync(string question, CancellationToken token)
         {
-            return await Task<Tuple<string, string>>.Factory.StartNew(() =>
+            return await Task<string>.Factory.StartNew(() =>
             {
                 var sentence = $"\"question\": \"{question}\" \"context\": \"{text}\"";
                 var tokenizer = new BertUncasedLargeTokenizer();
@@ -109,7 +109,7 @@ namespace ClassLibrary1
                             .Take(endIndex + 1 - startIndex)
                             .Select(o => tokenizer.IdToToken((int)o.VocabularyIndex))
                             .ToList();
-                return new(question, String.Join(" ", predictedTokens));
+                return String.Join(" ", predictedTokens);
             }, token, TaskCreationOptions.LongRunning, TaskScheduler.Current);
         }
         private static Tensor<long> ConvertToTensor(long[] inputArray, int inputDimension)

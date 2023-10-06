@@ -33,13 +33,15 @@ namespace MyApp // Note: actual namespace depends on the project name.
                 var tasks = new List<Task>();
                 while ((question = Console.ReadLine() ?? string.Empty) != string.Empty)
                 {
-                    var task1 = textAnalyzer.GetAnswerAsync(question, cts.Token);
+                    string question_copy = question;
+                    var task1 = textAnalyzer.GetAnswerAsync(question_copy, cts.Token);
                     var task2 = task1.ContinueWith(t =>
                     {
-                        var rez = t.Result;
-                        Console.WriteLine($"question: {rez.Item1}, answer: {rez.Item2}");
+                        var rez = task1.Result;
+                        Console.WriteLine($"question: {question_copy}, answer: {rez}");
                     }, cts.Token);
-                    tasks.Add(task2);
+                    tasks.Add(task1);
+                   
                 }
                 Task.WaitAll(tasks.ToArray());
 
