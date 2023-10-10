@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Prak_4_1": {
+      "commandName": "Project",
+      "commandLineArgs": "text.txt"
+    }
+  }
+}
