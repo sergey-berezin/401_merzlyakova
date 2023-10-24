@@ -86,7 +86,6 @@ namespace ViewModel
                             string? fileName = uiServices.OpenFile();
                             if (fileName != null)
                             {
-                                //создать объект с текстом
                                 Analyzer = await TextAnalyzer.CreateAsync(fileName, cts.Token, p);
 
                                 FileLoaded = true;
