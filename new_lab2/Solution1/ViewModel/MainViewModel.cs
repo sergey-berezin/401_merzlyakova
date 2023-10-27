@@ -34,10 +34,6 @@ namespace ViewModel
     {
         public CancellationTokenSource cts { get; set; }
 
-        IProgress<double> p = new Progress<double>(progress =>
-        {
-            Console.WriteLine("Downloaded: {0:f3} Mbyte", progress);
-        });
         private bool FileLoaded = false;
         private bool is_running = false;
         public string Text { get; set; }
@@ -65,7 +61,7 @@ namespace ViewModel
                         string? fileName = uiServices.OpenFile();
                         if (fileName != null)
                         {
-                            Analyzer = await TextAnalyzer.CreateAsync(fileName, cts.Token, p);
+                            Analyzer = await TextAnalyzer.CreateAsync(fileName, cts.Token);
 
                             if (System.IO.File.Exists("bert-large-uncased-whole-word-masking-finetuned-squad.onnx"))
                             {
@@ -86,7 +82,7 @@ namespace ViewModel
                             string? fileName = uiServices.OpenFile();
                             if (fileName != null)
                             {
-                                Analyzer = await TextAnalyzer.CreateAsync(fileName, cts.Token, p);
+                                Analyzer = await TextAnalyzer.CreateAsync(fileName, cts.Token);
 
                                 FileLoaded = true;
 
