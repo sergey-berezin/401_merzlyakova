@@ -81,6 +81,7 @@ namespace ClassLibrary1
         {
             return await Task<string>.Factory.StartNew(() =>
             {
+
                 var sentence = $"\"question\": \"{question}\" \"context\": \"{text}\"";
                 var tokenizer = new BertUncasedLargeTokenizer();
                 var tokens = tokenizer.Tokenize(sentence);
@@ -91,15 +92,18 @@ namespace ClassLibrary1
                     AttentionMask = encoded.Select(t => t.AttentionMask).ToArray(),
                     TypeIds = encoded.Select(t => t.TokenTypeIds).ToArray(),
                 };
+                token.ThrowIfCancellationRequested();
                 var modelPath = "bert-large-uncased-whole-word-masking-finetuned-squad.onnx";
-                var input_ids = ConvertToTensor(bertInput.InputIds, bertInput.InputIds.Length);
-                var attention_mask = ConvertToTensor(bertInput.AttentionMask, bertInput.InputIds.Length);
-                var token_type_ids = ConvertToTensor(bertInput.TypeIds, bertInput.InputIds.Length);
+                var input_ids = ConvertToTensor(bertInput.InputIds, bertInput.InputIds.Length, token);
+                var attention_mask = ConvertToTensor(bertInput.AttentionMask, bertInput.InputIds.Length, token);
+                var token_type_ids = ConvertToTensor(bertInput.TypeIds, bertInput.InputIds.Length, token);
                 var input = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor("input_ids", input_ids),
                                                     NamedOnnxValue.CreateFromTensor("input_mask", attention_mask),
                                                     NamedOnnxValue.CreateFromTensor("segment_ids", token_type_ids) };
                 var session = new InferenceSession(modelPath);
+                token.ThrowIfCancellationRequested();
                 var output = session.Run(input);
+                token.ThrowIfCancellationRequested();
                 List<float> startLogits = (output.ToList().First().Value as IEnumerable<float>).ToList();
                 List<float> endLogits = (output.ToList().Last().Value as IEnumerable<float>).ToList();
                 var startIndex = startLogits.ToList().IndexOf(startLogits.Max());
@@ -109,10 +113,11 @@ namespace ClassLibrary1
                             .Take(endIndex + 1 - startIndex)
                             .Select(o => tokenizer.IdToToken((int)o.VocabularyIndex))
                             .ToList();
+                token.ThrowIfCancellationRequested();
                 return String.Join(" ", predictedTokens);
             }, token, TaskCreationOptions.LongRunning, TaskScheduler.Current);
         }
-        private static Tensor<long> ConvertToTensor(long[] inputArray, int inputDimension)
+        private static Tensor<long> ConvertToTensor(long[] inputArray, int inputDimension, CancellationToken token)
         {
             // Create a tensor with the shape the model is expecting. Here we are sending in 1 batch with the inputDimension as the amount of tokens.
             Tensor<long> input = new DenseTensor<long>(new[] { 1, inputDimension });
@@ -123,6 +128,7 @@ namespace ClassLibrary1
                 // Add each to the input Tenor result.
                 // Set index and array value of each input Tensor.
                 input[0, i] = inputArray[i];
+                token.ThrowIfCancellationRequested();
             }
             return input;
         }
