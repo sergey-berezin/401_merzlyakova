@@ -10,6 +10,7 @@ namespace ViewModel
 {
     public class DataBase
     {
+        public string Text { get; set; }
         public string Question { get; set; }
         public string Answer { get; set; }
     }
@@ -17,7 +18,7 @@ namespace ViewModel
     {
         private const string file_json = "data.json";
         private const string file_copy_json = "data_copy.json";
-        public static async Task<string> BD_request(string question, TextAnalyzer analyzer, CancellationToken token)
+        public static async Task<string> BD_request(string text, string question, TextAnalyzer analyzer, CancellationToken token)
         {
             DataBase newData;
             List <DataBase > all_data = null;
@@ -34,12 +35,12 @@ namespace ViewModel
                 }
                 foreach (var data in all_data)
                 {
-                    if (data.Question == question)
+                    if (data.Question == question && data.Text == text)
                     {
                         return data.Answer;
                     }
                 }
-                newData = new DataBase { Question = question, Answer = await analyzer.GetAnswerAsync(question, token) };
+                newData = new DataBase { Text = text, Question = question, Answer = await analyzer.GetAnswerAsync(question, token) };
                 all_data.Add(newData);
             }
             try

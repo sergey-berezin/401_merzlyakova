@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Diagnostics;
 using System.Windows.Input;
+using System.Xml.Linq;
 
 namespace ViewModel
 {
@@ -64,7 +65,7 @@ namespace ViewModel
                         if (fileName != null)
                         {
                             Analyzer = await TextAnalyzer.CreateAsync(fileName, cts.Token);
-
+                            Text = fileName;
                             if (System.IO.File.Exists("bert-large-uncased-whole-word-masking-finetuned-squad.onnx"))
                             {
                                 FileLoaded = true;
@@ -85,8 +86,11 @@ namespace ViewModel
                             if (fileName != null)
                             {
                                 Analyzer = await TextAnalyzer.CreateAsync(fileName, cts.Token);
-
-                                FileLoaded = true;
+                                Text = fileName;
+                                if (System.IO.File.Exists("bert-large-uncased-whole-word-masking-finetuned-squad.onnx"))
+                                {
+                                    FileLoaded = true;
+                                }
 
                                 Messages.Add(new Data(await File.ReadAllTextAsync(fileName, cts.Token), "Left"));
                             }
@@ -97,9 +101,7 @@ namespace ViewModel
                         }
                         if (FileLoaded == true)
                         {
-                           
-                            string answer = await Base.BD_request(quest, Analyzer, cts.Token);
-
+                            string answer = await Base.BD_request(Text, quest, Analyzer, cts.Token);
                             Messages.Add(new Data(answer, "Left"));
                         }
                     }
